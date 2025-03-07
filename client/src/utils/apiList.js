@@ -41,10 +41,13 @@ export const fetchRecipesBySearch = async (query) => {
 
 export const generateRecipeByAI = async (dish, filters) => {
   try {
-    const response = await axios.post("http://localhost:3000/generate-recipe", {
-      dish: dish,
-      filters: filters,
-    });
+    const response = await axios.post(
+      "https://ai-recipe-finder-yune.onrender.com/generate-recipe",
+      {
+        dish: dish,
+        filters: filters,
+      }
+    );
     const recipeData =
       response.data.response.candidates[0].content.parts[0].text;
     return recipeData;
