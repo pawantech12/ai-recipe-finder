@@ -9,7 +9,7 @@ const port = process.env.PORT || 5000;
 app.use(express.json());
 // Configure CORS to allow requests from your frontend
 const corsOptions = {
-  origin: "http://localhost:5173", // React app's origin
+  origin: ["http://localhost:5173", " http://192.168.0.105:5173/"], // React app's origin
   methods: ["GET", "POST"], // Allowed HTTP methods
   allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
 };

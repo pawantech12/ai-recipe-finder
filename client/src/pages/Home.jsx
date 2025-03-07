@@ -2,6 +2,13 @@ import axios from "axios";
 import React, { useEffect, useState } from "react";
 import ReactPaginate from "react-paginate";
 import { Link, useNavigate } from "react-router-dom";
+import {
+  fetchRandomRecipes,
+  fetchRecipesBySearch,
+  generateRecipeByAI,
+} from "../utils/apiList";
+import RecipeCardLoader from "../components/RecipeCardLoader";
+import { generateSlug } from "../utils/slugGenerator";
 
 const Home = () => {
   const [recipes, setRecipes] = useState([]);
@@ -18,39 +25,26 @@ const Home = () => {
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [aiDish, setAiDish] = useState("");
   const [aiFilters, setAiFilters] = useState("");
-  const [aiRecipe, setAiRecipe] = useState(null);
+  const [totalRecipes, setTotalRecipes] = useState(0);
   const [aiLoading, setAiLoading] = useState(false);
 
-  const fetchRandomRecipes = async () => {
+  const fetchRandomRecipesData = async () => {
     setLoading(true);
-    try {
-      const response = await axios.get(
-        `https://api.spoonacular.com/recipes/complexSearch?apiKey=${apiKey}&addRecipeInformation=true&number=100`
-      );
-      setRecipes(response.data.results);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
-    }
+    const recipesData = await fetchRandomRecipes(100);
+    setRecipes(recipesData.results);
+    setTotalRecipes(recipesData.totalResults);
+    setLoading(false);
   };
 
   useEffect(() => {
-    fetchRandomRecipes();
-  }, [apiKey]);
+    fetchRandomRecipesData();
+  }, []);
 
   const fetchRecipes = async (query) => {
     setLoading(true);
-    try {
-      const response = await axios.get(
-        `https://api.spoonacular.com/recipes/complexSearch?apiKey=${apiKey}&query=${query}&addRecipeInformation=true&number=100`
-      );
-      setRecipes(response.data.results);
-    } catch (error) {
-      console.error("Error fetching recipes:", error);
-    } finally {
-      setLoading(false);
-    }
+    const fetchSearchRecipes = await fetchRecipesBySearch(query);
+    setRecipes(fetchSearchRecipes);
+    setLoading(false);
   };
 
   const handleSearch = (e) => {
@@ -66,44 +60,21 @@ const Home = () => {
   const generateAiRecipe = async (e) => {
     e.preventDefault();
     setAiLoading(true);
-    setAiRecipe(null);
-    try {
-      const response = await axios.post(
-        "http://localhost:3000/generate-recipe",
-        {
-          dish: aiDish,
-          filters: aiFilters.split(",").map((filter) => filter.trim()),
-        }
-      );
-      const recipeData =
-        response.data.response.candidates[0].content.parts[0].text;
-      setAiRecipe(recipeData);
-      navigate("/ai-recipe", { state: { aiRecipe: recipeData } });
-    } catch (error) {
-      console.error("Error generating AI recipe:", error);
-    } finally {
-      setAiLoading(false);
-    }
+    const recipeData = await generateRecipeByAI(
+      aiDish,
+      aiFilters.split(",").map((filter) => filter.trim())
+    );
+    navigate("/ai-recipe", { state: { aiRecipe: recipeData } });
+    setAiLoading(false);
   };
 
   // Get current page's items
   const offset = currentPage * itemsPerPage;
-  const currentRecipes = recipes.slice(offset, offset + itemsPerPage);
+  const currentRecipes = recipes?.slice(offset, offset + itemsPerPage);
 
   // Handle page change
   const handlePageChange = ({ selected }) => {
     setCurrentPage(selected);
-  };
-
-  const generateSlug = (title) => {
-    return title
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, "-")
-      .replace(/[^\w\-]+/g, "")
-      .replace(/--+/g, "-")
-      .replace(/^-+/, "")
-      .replace(/-+$/, "");
   };
 
   return (
@@ -113,7 +84,7 @@ const Home = () => {
           <h3 className="text-6xl text-center max-md:text-4xl max-md:font-semibold text-neutral-700 !leading-[3.2rem]">
             Search among{" "}
             <span className="bg-neutral-700 text-white px-3 py-1 rounded-md">
-              12,550
+              {totalRecipes}
             </span>{" "}
             recipes
           </h3>
@@ -151,7 +122,7 @@ const Home = () => {
 
         {/* Recipe cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 mt-8">
-          {currentRecipes.length !== 0 ? (
+          {currentRecipes?.length > 0 ? (
             !loading ? (
               currentRecipes.map((recipe, index) => (
                 <div
@@ -160,11 +131,11 @@ const Home = () => {
                 >
                   <figure className="relative">
                     <img
-                      src={recipe.image}
-                      alt={recipe.title}
+                      src={recipe?.image}
+                      alt={recipe?.title}
                       className="w-full object-cover"
                     />
-                    {recipe.veryPopular && (
+                    {recipe?.veryPopular && (
                       <span className="bg-neutral-700 px-3 py-1 rounded-md text-white absolute top-2 left-2">
                         Popular
                       </span>
@@ -172,18 +143,20 @@ const Home = () => {
                   </figure>
                   <div className="p-4">
                     <h2 className="text-lg font-bold text-gray-800 hover:text-neutral-600 transition-colors duration-200">
-                      {recipe.title.length > 50
-                        ? recipe.title.slice(0, 50) + "..."
-                        : recipe.title}
+                      {recipe?.title?.length > 50
+                        ? recipe?.title?.slice(0, 50) + "..."
+                        : recipe?.title}
                     </h2>
                     <p className="text-sm text-gray-600 mt-2 line-clamp-3">
-                      {recipe.summary.replace(/(<([^>]+)>)/gi, "").slice(0, 50)}
+                      {recipe?.summary
+                        ?.replace(/(<([^>]+)>)/gi, "")
+                        .slice(0, 50)}
                       ...
                     </p>
 
                     <div className="mt-4">
                       <Link
-                        to={`/recipe/${generateSlug(recipe.title)}`}
+                        to={`/recipe/${recipe.id}`}
                         className="block text-center bg-neutral-700 text-white py-3 rounded-md font-medium hover:bg-neutral-800"
                       >
                         View Recipe
@@ -193,9 +166,7 @@ const Home = () => {
                 </div>
               ))
             ) : (
-              <p className="col-span-full text-center text-lg text-gray-600">
-                Loading Recipes...
-              </p>
+              <RecipeCardLoader />
             )
           ) : (
             <p className="col-span-full text-center text-lg text-gray-600">
@@ -242,27 +213,33 @@ const Home = () => {
           </div>
         )}
         {/* Pagination */}
-        <ReactPaginate
-          previousLabel={"← Previous"}
-          nextLabel={"Next →"}
-          breakLabel={"..."}
-          pageCount={Math.ceil(recipes.length / itemsPerPage)}
-          marginPagesDisplayed={2}
-          pageRangeDisplayed={3}
-          onPageChange={handlePageChange}
-          containerClassName={"flex justify-center items-center gap-4 mt-8"}
-          pageClassName={
-            "px-3 py-2 rounded-md border border-gray-300 hover:bg-neutral-700 hover:text-white cursor-pointer"
-          }
-          activeClassName={"bg-neutral-700 text-white"}
-          previousClassName={
-            "px-3 py-2 rounded-md border border-gray-300 hover:bg-neutral-700 hover:text-white cursor-pointer"
-          }
-          nextClassName={
-            "px-3 py-2 rounded-md border border-gray-300 hover:bg-neutral-700 hover:text-white cursor-pointer"
-          }
-          disabledClassName={"opacity-50 cursor-not-allowed"}
-        />
+        {currentRecipes?.length > 0 && (
+          <div className="flex justify-center items-center mt-8 overflow-x-auto px-2">
+            <ReactPaginate
+              previousLabel={"← Previous"}
+              nextLabel={"Next →"}
+              breakLabel={"..."}
+              pageCount={Math.ceil(recipes?.length / itemsPerPage)}
+              marginPagesDisplayed={2}
+              pageRangeDisplayed={3}
+              onPageChange={handlePageChange}
+              containerClassName={
+                "flex justify-center items-center gap-2 sm:gap-4 flex-wrap"
+              }
+              pageClassName={
+                "px-2 sm:px-3 py-1 sm:py-2 text-sm sm:text-base rounded-md border border-gray-300 hover:bg-neutral-700 hover:text-white cursor-pointer"
+              }
+              activeClassName={"bg-neutral-700 text-white"}
+              previousClassName={
+                "px-2 sm:px-3 py-1 sm:py-2 text-sm sm:text-base rounded-md border border-gray-300 hover:bg-neutral-700 hover:text-white cursor-pointer"
+              }
+              nextClassName={
+                "px-2 sm:px-3 py-1 sm:py-2 text-sm sm:text-base rounded-md border border-gray-300 hover:bg-neutral-700 hover:text-white cursor-pointer"
+              }
+              disabledClassName={"opacity-50 cursor-not-allowed"}
+            />
+          </div>
+        )}
       </section>
     </>
   );

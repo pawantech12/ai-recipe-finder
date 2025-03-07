@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { IoChevronBackOutline } from "react-icons/io5";
 import { useLocation } from "react-router-dom";
 import rehypeFormat from "rehype-format";
 import rehypeStringify from "rehype-stringify";
@@ -46,6 +47,13 @@ const AiRecipeDetails = () => {
 
   return (
     <div className="py-10">
+      <button
+        onClick={() => window.history.back()}
+        className="bg-neutral-600 text-white px-3 py-2 text-sm mx-12 mt-4 font-medium rounded-md hover:bg-neutral-800 flex items-center gap-1"
+      >
+        <IoChevronBackOutline />
+        Back
+      </button>
       <div
         dangerouslySetInnerHTML={{ __html: htmlContent }}
         className="prose max-w-none w-9/12 mx-auto max-sm:w-11/12"
